@@ -36,11 +36,11 @@ def find_and_archive_homonyms():
             if title_props:
                 title = title_props[0]["text"]["content"]
             
-            reporter_props = page["properties"].get("기자", {}).get("rich_text", [])
-            reporter = reporter_props[0]["text"]["content"] if reporter_props else ""
+            reporter_props = page["properties"].get("기자", {}).get("multi_select", [])
+            reporter = reporter_props[0]["name"] if reporter_props else ""
             
-            company_props = page["properties"].get("언론사", {}).get("rich_text", [])
-            company = company_props[0]["text"]["content"] if company_props else ""
+            company_props = page["properties"].get("언론사", {}).get("multi_select", [])
+            company = company_props[0]["name"] if company_props else ""
 
             # 필터링 조건 (NATV 기자)
             target_keywords = ["NATV", "jinlove48@naver.com", "이소희 기자"]

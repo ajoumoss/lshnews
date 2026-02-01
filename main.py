@@ -1,5 +1,5 @@
 import sys
-from scraper import search_naver_news, filter_articles, extract_article_details
+from scraper import search_naver_news, is_relevant_article, extract_article_details
 from notion_integrator import add_article_to_notion, update_article_in_notion, get_existing_article_page_id, check_database_exists
 import time
 from datetime import datetime, timezone, timedelta
@@ -34,34 +34,53 @@ def main():
             seen_links.add(a['link'])
             unique_articles.append(a)
 
-    relevant_articles = filter_articles(unique_articles, start_date=start_date, end_date=end_date)
-    print(f"검색된 기사: {len(unique_articles)}개 -> 1월 필터링 후: {len(relevant_articles)}개")
+    # 1. 날짜 필터링만 우선 수행 (24시간 이내)
+    recent_articles = []
+    for a in unique_articles:
+        try:
+            pub_dt = datetime.strptime(a.get('pubDate', ''), "%a, %d %b %Y %H:%M:%S %z")
+            if pub_dt >= start_date:
+                recent_articles.append(a)
+        except:
+            pass
+            
+    print(f"검색된 기사: {len(unique_articles)}개 -> 24시간 이내: {len(recent_articles)}개")
 
     count_new = 0
     count_updated = 0
     
-    for i, a in enumerate(relevant_articles):
+    for i, a in enumerate(recent_articles):
         link = a['link']
-        page_id = get_existing_article_page_id(link)
         
-        print(f"[{i+1}/{len(relevant_articles)}] 처리 중: {a['title'][:30]}...")
+        # [변경] 상세 내용을 먼저 추출
+        print(f"[{i+1}/{len(recent_articles)}] 분석 중: {a['title'][:30]}...")
         details = extract_article_details(link)
         
-        # 2차 필터링 (추출된 상세 정보 기반)
-        # 본문이나 기사 정보에서 NATV 기자가 확인되면 제외
+        # [변경] 본문 포함하여 관련성 검사 (is_relevant_article 수정됨)
+        # 이제 title, description, content 전체를 보고 판단
+        if not is_relevant_article(a, content=details['content']):
+            print(" -> 관련 없는 기사로 판단되어 건너뜁니다.")
+            continue
+            
+        page_id = get_existing_article_page_id(link)
+        
+        # 2차 필터링 (추가적인 동명이인/NATV 체크 - 기존 로직 유지하되 중복 확인)
+        # 이미 is_relevant_article 안에서도 체크하지만, extract_article_details에서 나온 
+        # reporter/company 정보를 더 확실히 쓰고 싶다면 여기서 한 번 더 체크 가능.
+        # 하지만 위에서 is_relevant_article(content=...)로 대부분 걸러짐.
+        # 여기선 '기자' 필드나 '언론사' 필드에 명시적으로 들어간 경우를 재확인.
+        
         exclude_raw = ['natv', 'jinlove48@naver.com', '이소희 기자']
         is_homonym = False
         for ex in exclude_raw:
             if (ex in details['reporter'].lower() or 
-                ex in details['company'].lower() or 
-                ex in details['content'].lower()):
-                # 기사 내용에 '의원' 키워드가 확실히 핵심적으로 쓰이지 않은 경우만 제외
+                ex in details['company'].lower()):
                 if '의원' not in a['title']:
                     is_homonym = True
                     break
         
         if is_homonym:
-            print(f" -> 동명이인 기자(NATV 등) 기사로 판단되어 건너뜁니다.")
+            print(f" -> 동명이인 기자/매체(NATV 등)로 판단되어 건너뜁니다.")
             continue
 
         if not page_id:

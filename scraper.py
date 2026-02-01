@@ -133,10 +133,14 @@ def summarize_mentions(text):
     if not relevant: return "의원님에 대한 직접적인 언급 문장을 찾지 못했습니다."
     return "\n\n".join(relevant[:7])
 
-def is_relevant_article(item, start_date=None, end_date=None):
+def is_relevant_article(item, start_date=None, end_date=None, content=None):
     title = item.get('title', '').replace('<b>', '').replace('</b>', '')
     description = item.get('description', '').replace('<b>', '').replace('</b>', '')
+    
+    # 제목 + 설명 + (선택적) 본문 결합
     combined_text = title + " " + description
+    if content:
+        combined_text += " " + content
     
     # 1. 교수/기자 동명이인 강력 제외 (NATV 및 특정 기자 패턴 추가)
     exclude_keywords = [

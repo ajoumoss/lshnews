@@ -35,11 +35,11 @@ def add_article_to_notion(title, link, date, description, company="정보 없음
         url = "https://api.notion.com/v1/pages"
         
         properties = {
-            "기사내용": {"title": [{"text": {"content": clean_text(title)}}]},
+            "내용": {"title": [{"text": {"content": clean_text(title)}}]},
             "URL": {"url": link},
             "날짜": {"date": {"start": formatted_date}},
-            "언론사": {"rich_text": [{"text": {"content": clean_text(company)}}]},
-            "기자": {"rich_text": [{"text": {"content": clean_text(reporter)}}]}
+            "언론사": {"multi_select": [{"name": clean_text(company).replace(",", "")}]},
+            "기자": {"multi_select": [{"name": clean_text(reporter).replace(",", "")}]}
         }
         
         children = generate_children_blocks(description, link, mentions) # link를 전달
@@ -51,6 +51,8 @@ def add_article_to_notion(title, link, date, description, company="정보 없음
         
         with httpx.Client() as client:
             response = client.post(url, headers=get_headers(), json=payload)
+            if response.status_code != 200:
+                print(f"Failed to add to Notion. Status: {response.status_code}, Body: {response.text}")
             return response.status_code == 200
     except Exception as e:
         print(f"Error adding to Notion: {e}")
@@ -60,9 +62,9 @@ def update_article_in_notion(page_id, title, link, date, company, reporter, full
     try:
         url = f"https://api.notion.com/v1/pages/{page_id}"
         properties = {
-            "기사내용": {"title": [{"text": {"content": clean_text(title)}}]},
-            "언론사": {"rich_text": [{"text": {"content": clean_text(company)}}]},
-            "기자": {"rich_text": [{"text": {"content": clean_text(reporter)}}]}
+            "내용": {"title": [{"text": {"content": clean_text(title)}}]},
+            "언론사": {"multi_select": [{"name": clean_text(company).replace(",", "")}]},
+            "기자": {"multi_select": [{"name": clean_text(reporter).replace(",", "")}]}
         }
         
         with httpx.Client() as client:
