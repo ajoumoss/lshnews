@@ -73,11 +73,16 @@ def main():
         exclude_raw = ['natv', 'jinlove48@naver.com', '이소희 기자']
         is_homonym = False
         for ex in exclude_raw:
-            if (ex in details['reporter'].lower() or 
-                ex in details['company'].lower()):
+            # NoneType 에러를 방지하기 위해 빈 값이면 빈 문자열("")로 대체
+            reporter_text = details.get('reporter') or ""
+            company_text = details.get('company') or ""
+            
+            if (ex in reporter_text.lower() or 
+                ex in company_text.lower()):
                 if '의원' not in a['title']:
                     is_homonym = True
                     break
+
         
         if is_homonym:
             print(f" -> 동명이인 기자/매체(NATV 등)로 판단되어 건너뜁니다.")
